@@ -177,10 +177,10 @@ class _ThemeState extends State<ThemeMain> {
                                       onChanged: (value) {})
                                 ],
                               ),
+
+                              //스크롤뷰로 감싸야 하는 곳
                               Expanded(
-                                child: ListView(
-                                  padding: const EdgeInsets.all(0.0),
-                                  shrinkWrap: true,
+                                child: Column(
                                   children: [
                                     Column(
                                       mainAxisAlignment: MainAxisAlignment.start,
@@ -240,25 +240,47 @@ class _ThemeState extends State<ThemeMain> {
                                               weight: FontWeight.w400,
                                               color: Colors.black,
                                             ),
-
                                             //조건부 넣어야하는지 물어보기.
-                                            TextButton(onPressed: _addCustomBackground, child: Text(" + ")),
-                                            TextButton(onPressed: _deleteCustomBackground, child: Text(" - ")),
+                                            SizedBox(width: 50, child: TextButton(onPressed: _addCustomBackground, child: Text(" + ", style: TextStyle(fontSize: 20)))),
+                                            SizedBox(width: 40, child: TextButton(onPressed: _deleteCustomBackground, child: Text(" - ", style: TextStyle(fontSize: 20, color: Colors.red)))),
+
                                             //이미지버튼 추가(리스트에 삽입해야함. )
                                           ],
                                         ),
                                         AnimatedOpacity(
-                                          opacity: _isCheckedTheme ? 1.0 : 0.0,
-                                          duration: const Duration(milliseconds: 500),
-                                          child: Visibility(
-                                            maintainAnimation: true,
-                                            maintainState: true,
-                                            visible: _isCheckedTheme,
-                                            child: Row(
-                                              children: List.generate(themeListItmes.length, (index) => initContainerByImageBox(list: themeListItmes, index: index)),
-                                            ),
-                                          ),
-                                        ),
+                                            opacity: _isCheckedTheme ? 1.0 : 0.0,
+                                            duration: const Duration(milliseconds: 500),
+
+                                            //저장된 테마값이 5개 이상일때는 스크롤뷰로 넣고, 아니면 기존 컬럼으로 넣기.
+                                            child: themeListItmes.length > 5
+                                                ? SingleChildScrollView(
+                                                    scrollDirection: Axis.horizontal,
+                                                    child: Column(
+                                                      children: [
+                                                        Visibility(
+                                                          maintainAnimation: true,
+                                                          maintainState: true,
+                                                          visible: _isCheckedTheme,
+                                                          child: Row(
+                                                            //스크롤뷰로 감싸기.
+                                                            children: List.generate(themeListItmes.length, (index) => initContainerByImageBox(list: themeListItmes, index: index)),
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ))
+                                                : Column(
+                                                    children: [
+                                                      Visibility(
+                                                        maintainAnimation: true,
+                                                        maintainState: true,
+                                                        visible: _isCheckedTheme,
+                                                        child: Row(
+                                                          //스크롤뷰로 감싸기.
+                                                          children: List.generate(themeListItmes.length, (index) => initContainerByImageBox(list: themeListItmes, index: index)),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ))
                                       ],
                                     ),
                                   ],
@@ -310,8 +332,17 @@ class _ThemeState extends State<ThemeMain> {
               setState(() {
                 print("인덱스 클릭 : " + index.toString() + ' , ' + list[index]["image"]);
 
+                //바로 홈화면으로 가게
+
                 _initListReset();
                 list[index]["value"] = true;
+
+                //탭하면 포인터 유지될수 있도록 변경
+                var jsonVar = json.encode(themeListItmes);
+
+                print("LOG jsonVar : " + jsonVar);
+
+                secureStorage.write("tempListVar", jsonVar);
               });
 
               // _setBackgroundPath("${list[index]["image"]}.png");
@@ -344,11 +375,7 @@ class _ThemeState extends State<ThemeMain> {
                       fit: BoxFit.fill
                       // Image.asset("assets/${list[index]["image"]}.png", fit: BoxFit.fitHeight) as ImageProvider,
                       )),
-            )
-
-            // child: Image.asset("assets/${list[index]["image"]}.png", fit: BoxFit.fitHeight)),
-
-            ));
+            )));
   }
 
   void _setUI(WorkInfo workInfo) {
@@ -358,7 +385,7 @@ class _ThemeState extends State<ThemeMain> {
   }
 
   void _synchonizationThemeUI(WorkInfo? workInfo) {
-    dialog.show(message: "로딩중...");
+    dialog.show(message: "🍄로딩중...🍄");
     sendMessageByWork(context, secureStorage).then((workInfo) {
       if (workInfo!.success) {
         setState(() {});
@@ -424,8 +451,11 @@ class _ThemeState extends State<ThemeMain> {
     _initListReset();
 
     try {
-      if (themeListItmes.length > 4) {
-        print("5개 이상이라 안들어감, 팝업추가할 예정");
+      //이미지 저장 한 8개정도로...
+      if (themeListItmes.length > 7) {
+        print("8개 이상이라 안들어감, 팝업추가할 예정");
+
+        FlutterDialog(context, "이미지 개수 제한", "8개 이상으로는 추가할 수 없습니다.");
       } else {
         XFile? pickedFile = await _picker.pickImage(
           source: ImageSource.gallery,
@@ -437,12 +467,16 @@ class _ThemeState extends State<ThemeMain> {
         if (pickedFile != null) {
           _image = File(pickedFile.path);
 
+          //배열초기화.
+          _initListReset();
+
           //배열에 파일 추가.
 
-          themeListItmes.add({
-            "value": false,
-            "image": _image.path,
-          });
+          String jsonString = '{"value" : false , "image" : "' + _image.path + '"}';
+
+          print("sampleJSON : " + jsonString);
+
+          themeListItmes.add(jsonDecode(jsonString));
 
           setState(() {
             //이미지 삽입 준비하기(메인)
@@ -451,9 +485,13 @@ class _ThemeState extends State<ThemeMain> {
             //선택된 이미지파일을 메인으로 넘기기. (_image.path 를 넘기기.)
             _setBackgroundPath(_image.path);
 
-            //배열 저장하기.
+            var jsonVar = json.encode(themeListItmes);
 
-            print("마지막 배열 : " + themeListItmes.last.toString());
+            print("LOG jsonVar : " + jsonVar);
+
+            secureStorage.write("tempListVar", jsonVar);
+
+            // secureStorage.write("savedValue", jsonString);
 
             //하이라이트 되는 부분 변경
             themeListItmes.last["value"] = true;
@@ -476,42 +514,124 @@ class _ThemeState extends State<ThemeMain> {
     print("리스트 개수 : " + themeListItmes.length.toString());
 
     if (themeListItmes.length > 3) {
-      //3보다 클 경우에(0 1 2 / 3 4 ) 가장 마지막 배열을 삭제함.
+      print("이미지 개수 4부터 : " + themeListItmes.length.toString());
       themeListItmes.removeLast();
 
       //배열 저장 후, 현재 마지막으로 되어있는 이미지를 배경으로 설정.
 
-      _setBackgroundPath(themeListItmes.last["image"]);
+      var jsonVar = json.encode(themeListItmes);
+
+      print("LOG jsonVar : " + jsonVar);
+
+      secureStorage.write("tempListVar", jsonVar);
+
+      print("마지막 이미지 : " + themeListItmes.last["image"]);
+
+      if (themeListItmes.last["image"] == "theme3") {
+        _setBackgroundPath(themeListItmes.last["image"] + ".png");
+        //마지막 배열 지우고 다시 배열 생성해서 저장해줘야함...
+
+        // secureStorage.delete("savedValue");
+        secureStorage.delete("tempListVar");
+      } else {
+        _setBackgroundPath(themeListItmes.last["image"]);
+      }
       setState(() {});
     } else {
+      print("이미지 개수 3부터 : " + themeListItmes.length.toString());
+
+      FlutterDialog(context, "오류", "삭제할 이미지가 없습니다.");
+
       //마지막 커스텀이미지 삭제시 3번 이미지를 전달
-      // _setBackgroundPath("theme3.png");
-      _setBackgroundPath(themeListItmes.last["image"].png);
+      _setBackgroundPath(themeListItmes.last["image"] + ".png");
       setState(() {});
+
+      // secureStorage.delete("savedValue");
+      secureStorage.delete("tempListVar");
     }
     //하이라이트 되는 부분 변경
 
     themeListItmes.last["value"] = true;
   }
 
-  void _initArray() {
-    //배열 ~ 초기화할때 없으면 기존테마 3개만 있는거
-    //+버튼 눌렀을때 배열저장 추가
-    //-버튼 누르면 배열저장 삭제
-
+  void _initArray() async {
     themeListItmes = [
-      {
-        "value": false,
-        "image": "theme1",
-      },
-      {
-        "value": false,
-        "image": "theme2",
-      },
-      {
-        "value": false,
-        "image": "theme3",
-      },
+      {"value": false, "image": "theme1"},
+      {"value": false, "image": "theme2"},
+      {"value": false, "image": "theme3"},
     ];
+
+    // secureStorage.delete("savedValue");
+
+    // String? savedValue = await secureStorage.read("savedValue");
+
+    var tempListVar = await secureStorage.read("tempListVar");
+
+    print("LOG : JSONDECODE " + tempListVar!);
+
+    // print("임시 저장값 : " + savedValue.toString());
+
+    if (tempListVar!.isNotEmpty) {
+      //널값이 아니면 값이 저장되있다는 의미임. 해당값을 배열에 넣어주기.
+
+      // themeListItmes.clear();
+
+      print("값이 차있을때");
+
+      //배열 전체를 그냥 가져다 박아버림.
+
+      themeListItmes = jsonDecode(tempListVar!);
+
+      // themeListItmes.add(jsonDecode(savedValue.toString()));
+
+      print("마지막 배열 : " + themeListItmes.last.toString() + " / 전체 배열 : " + themeListItmes.toString());
+
+      //UI갱신
+    } else {
+      //저장된 값이 없으니까 배열저장이 안되있어야함.
+
+      print("값이 없을때");
+    }
+
+    setState(() {});
   }
+}
+
+//팝업메세지 리스트들...
+
+void FlutterDialog(BuildContext context, String titleText, String bodyText) {
+  showDialog(
+      context: context,
+      //barrierDismissible - Dialog를 제외한 다른 화면 터치 x
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          // RoundedRectangleBorder - Dialog 화면 모서리 둥글게 조절
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
+          //Dialog Main Title
+          title: Column(
+            children: <Widget>[
+              new Text(titleText),
+            ],
+          ),
+          //
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                bodyText,
+              ),
+            ],
+          ),
+          actions: <Widget>[
+            new FlatButton(
+              child: new Text("확인"),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+          ],
+        );
+      });
 }
