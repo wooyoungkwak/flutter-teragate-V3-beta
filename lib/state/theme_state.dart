@@ -352,7 +352,7 @@ class _ThemeState extends State<ThemeMain> {
                       image: list[index]["image"].toString().startsWith('/data')
                           ?
                           //data 시작이 맞으면
-                          FileImage(File(list[index]["image"]))
+                          FileImage(File(list[index]["image"]), scale: 0.2)
                           :
                           //기존 이미지면
                           AssetImage("assets/${list[index]["image"]}.png") as ImageProvider,
@@ -439,10 +439,16 @@ class _ThemeState extends State<ThemeMain> {
         FlutterDialog(context, "이미지 개수 제한", "8개 이상으로는 추가할 수 없습니다.");
       } else {
         XFile? pickedFile = await _picker.pickImage(
-          source: ImageSource.gallery,
-          // maxWidth: 621,
-          // maxHeight: 1344,
-        );
+            source: ImageSource.gallery,
+            // maxWidth: 621,
+            // maxHeight: 1344,
+
+            //이부분 해상도 변경을 해야합니다.
+            maxWidth: 900,
+            maxHeight: 1600,
+
+            //이미지 퀼리티는 0 ~ 100 사이에서 조절 가능.
+            imageQuality: 20);
 
         //NULL 체크
         if (pickedFile != null) {
