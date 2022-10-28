@@ -415,8 +415,6 @@ class _HomeState extends State<Home> {
       currentLocation = Env.INIT_STATE_WORK_INFO.placeWorkName ?? "-";
       // 배경화면
       backgroundPath = Env.BACKGROUND_PATH ?? "background1.png";
-
-      print("값 가져온거 : " + backgroundPath);
     });
   }
 
